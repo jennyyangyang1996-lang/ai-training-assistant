@@ -4,43 +4,96 @@
     <meta charset="UTF-8" />
     <title>AI 企业培训助手</title>
   </head>
-  <body>
-    <h1>AI 企业培训助手</h1>
 
-    <p>请输入你的问题：</p>
+  <body>
+    <h1>AI 企业培训助手 V3</h1>
 
     <input
-      type="text"
       id="question"
-      placeholder="例如：请假流程是什么？"
+      placeholder="请输入问题（例如：报销流程）"
       style="width: 300px"
     />
 
-    <button onclick="sendQuestion()">发送</button>
+    <button id="generateBtn">生成讲稿</button>
+    <button id="playBtn" disabled>播放语音</button>
 
     <hr />
 
     <h3>AI 回答：</h3>
+    <div id="answer">等待生成...</div>
 
-    <div id="answer">（这里以后会显示 AI 的回答）</div>
+    <h3>语音：</h3>
+    <audio id="audio" controls></audio>
+
     <script>
-      async function sendQuestion() {
-        const question = document.getElementById("question").value;
+      const generateBtn = document.getElementById("generateBtn");
+      const playBtn = document.getElementById("playBtn");
+      const audio = document.getElementById("audio");
+      const answerDiv = document.getElementById("answer");
 
-        const response = await fetch("/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            question: question,
-          }),
-        });
+      let currentAudioUrl = "";
 
-        const result = await response.json();
+      generateBtn.addEventListener("click", async () => {
+        const question = document.getElementById("question").value.trim();
 
-        document.getElementById("answer").innerText = result.answer;
-      }
+        if (!question) {
+          alert("请输入问题");
+          return;
+        }
+
+        answerDiv.innerText = "生成中，请稍等...";
+        playBtn.disabled = true;
+        currentAudioUrl = "";
+        audio.removeAttribute("src");
+        audio.load();
+
+        try {
+          const res = await fetch("/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ question }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            answerDiv.innerText = data.answer || "请求失败";
+            return;
+          }
+
+          answerDiv.innerText = data.answer;
+
+          currentAudioUrl = data.audioUrl;
+          audio.src = currentAudioUrl;
+          audio.load();
+
+          playBtn.disabled = false;
+        } catch (err) {
+          console.log(err);
+          answerDiv.innerText = "请求失败，请检查服务";
+          playBtn.disabled = true;
+        }
+      });
+
+      playBtn.addEventListener("click", async () => {
+        if (!currentAudioUrl) {
+          alert("请先生成讲稿和语音");
+          return;
+        }
+
+        audio.src = currentAudioUrl;
+        audio.load();
+
+        try {
+          await audio.play();
+          console.log("播放成功");
+        } catch (err) {
+          console.log("播放失败：", err);
+          alert("播放失败，请尝试点击播放器上的播放按钮");
+        }
+      });
     </script>
   </body>
 </html>
